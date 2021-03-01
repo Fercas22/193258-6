@@ -1,0 +1,388 @@
+# POSTGRES
+# Persistent Volume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-postgres-vol1
+spec:                                         # Configuración de lo que va a contruir a nivel de disco
+  storageClassName: postgres
+  capacity:
+    storage: 10Gi                             # Capacidad
+  accessModes:
+    - ReadWriteOnce                           # Lectura y escritura
+  hostPath:
+    path: "/mnt/postgres-vol1"                # Lugar donde guardara los datos
+
+---
+# Persistent Volume Claim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-postgres
+  volumeName: pv-postgres-vol1
+spec:
+  storageClassName: postgres
+  accessModes:
+    - ReadWriteOnce
+  resources:                                  # Configuración de lo que va a reclamar
+    requests:
+      storage: 5Gi
+
+---
+# Storage Class
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: postgres
+provisioner: kubernetes.io/no-provisioner     # no-provisioner -> Entorno de de infraestructura local
+reclaimPolicy: Retain                         # Que realizara con mis datos 
+volumeBindingMode: WaitForFirstConsumer
+
+---
+# ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+data:
+  postgres_password: "FER22NANDO"
+  postgres_user: "postgres"
+  postgres_db: "migueldb"
+
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-deployment
+  namespace: miguel-prueba
+  labels:
+    app: postgres-server
+spec:
+  selector:
+    matchLabels:
+      app: postgres-server
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: postgres-server
+    spec:
+      containers:
+      - image: postgres:11  #docker pull image
+        name: postgres-db1
+        ports:
+        - containerPort: 5432
+          protocol: TCP
+        volumeMounts:
+          - mountPath: /var/lib/postgresql/data
+            name: pv-postgres-vol1
+        env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres-config  # The ConfigMap this value comes from.
+                  key: postgres_password # The key to fetch.
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres-config  # The ConfigMap this value comes from.
+                  key: postgres_user     # The key to fetch.
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres-config   # The ConfigMap this value comes from.
+                  key: postgres_db        # The key to fetch.
+      volumes:
+      - name: pv-postgres-vol1
+      configMap:
+        name: postgres-config
+      persistentVolumeClaim:
+        claimName: pvc-postgres
+
+---
+# Services
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: miguel-prueba
+spec:
+  selector:
+    app: postgres-server
+  ports:
+    - port: 5300
+      targetPort: 5432
+  type: LoadBalancer
+
+# REDIS
+# Persistent Volume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-redis-vol1
+spec:                                      #Configuración de lo que va a contruir a nivel de disco
+  storageClassName: redis
+  capacity:
+    storage: 10Gi                          # Capacidad
+  accessModes:
+    - ReadWriteOnce                        # Lectura y escritura
+  hostPath:
+    path: "/mnt/redis-vol1"                # Lugar donde guardara los datos
+
+---
+# Persistent Volume Claim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-redis
+  volumeName: pv-redis-vol1
+spec:
+  storageClassName: redis
+  accessModes:
+    - ReadWriteOnce
+  resources:                                 #Configuración de lo que va a reclamar
+    requests:
+      storage: 5Gi
+
+---
+# Storage Class
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: redis
+provisioner: kubernetes.io/no-provisioner   # no-provisioner -> Entorno de de infraestructura local
+reclaimPolicy: Retain                       # Que realizara con mis datos 
+volumeBindingMode: WaitForFirstConsumer
+
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: redis-deployment
+    namespace: miguel-prueba
+    labels:
+      app: redis-server
+spec:
+  replicas: 1 
+  selector:
+    matchLabels: 
+      app: redis-server
+  template: 
+    metadata:
+      labels: 
+        app: redis-server
+    spec:
+      containers:
+        - name: redis
+          image: redis
+          ports:        
+            - containerPort: 6379
+
+---
+# Services
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: miguel-prueba
+spec:
+  selector:
+    app: redis-server
+  ports:
+    - port: 5301
+      targetPort: 6379
+  type: LoadBalancer
+
+#MONGO
+# Persistent Volume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-mongo-vol1
+spec:                                         # Configuración de lo que va a contruir a nivel de disco
+  storageClassName: mongo
+  capacity:
+    storage: 10Gi                             # Capacidad
+  accessModes:
+    - ReadWriteOnce                           # Lectura y escritura
+  hostPath:
+    path: "/mnt/mongo-vol1"                   # Lugar donde guardara los datos
+
+---
+# Persistent Volume Claim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-mongo
+  volumeName: pv-mongo-vol1
+spec:
+  storageClassName: mongo
+  accessModes:
+    - ReadWriteOnce
+  resources:                                    #Configuración de lo que va a reclamar
+    requests:
+      storage: 5Gi
+
+---
+# Storage Class
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: mongo
+provisioner: kubernetes.io/no-provisioner       # no-provisioner -> Entorno de de infraestructura local
+reclaimPolicy: Retain                           # Que realizara con mis datos 
+volumeBindingMode: WaitForFirstConsumer
+
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo-deployment
+  namespace: miguel-prueba
+  labels:
+    app: mongo-server
+spec:
+  selector:
+    matchLabels:
+      app: mongo-server
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mongo-server  
+    spec:
+      containers:
+      - name: mongo
+        image: mongo:4
+        ports:
+        - containerPort: 27017
+        volumeMounts:
+        - mountPath: /data/db  
+          name: pv-mongo-vol1
+      volumes:
+      - name: pv-mongo-vol1
+        persistentVolumeClaim:
+          claimName: pvc-mongo  
+
+---
+# Services
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo-service
+  namespace: miguel-prueba
+spec:
+  selector:
+    app: mongo-server
+  ports:
+    - port: 5302
+      targetPort: 27017
+  type: LoadBalancer
+
+#MYSQL
+# Persistent Volume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-mysql-vol1
+spec:                                     #Configuración de lo que va a contruir a nivel de disco
+  storageClassName: mysql
+  capacity:
+    storage: 10Gi                         # Capacidad
+  accessModes:
+    - ReadWriteOnce                       # Lectura y escritura
+  hostPath:
+    path: "/mnt/mysql-vol1"               # Lugar donde guardara los datos
+
+---
+# Persistent Volume Claim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-mysql
+  volumeName: pv-mysql-vol1
+spec:
+  storageClassName: mysql
+  accessModes:
+    - ReadWriteOnce
+  resources:                              #Configuración de lo que va a reclamar
+    requests:
+      storage: 5Gi
+
+---
+# Storage Class
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: mysql
+provisioner: kubernetes.io/no-provisioner # no-provisioner -> Entorno de de infraestructura local
+reclaimPolicy: Retain                     # Que realizara con mis datos 
+volumeBindingMode: WaitForFirstConsumer
+
+---
+# ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-config
+data:
+  mysql_password: "password"
+
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-deployment
+  namespace: miguel-prueba
+  labels:
+    app: mysql-server
+spec:
+  selector:
+    matchLabels:
+      app: mysql-server
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mysql-server
+    spec:
+      containers:
+      - image: mysql:5.6
+        name: mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+              configMapKeyRef:
+                name: mysql-config
+                key: mysql_password
+        ports:
+        - containerPort: 3306
+          name: mysql
+        volumeMounts:
+        - name: pv-mysql-vol1
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: pv-mysql-vol1
+      configMap: 
+        name: mysql-config
+        persistentVolumeClaim:
+          claimName: pvc-mysql
+
+---
+# Services
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service
+  namespace: miguel-prueba
+spec:
+  selector:
+    app: mysql-server
+  ports:
+    - port: 5303
+      targetPort: 3306
+  type: LoadBalancer
